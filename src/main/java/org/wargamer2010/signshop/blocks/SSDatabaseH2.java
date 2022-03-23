@@ -139,8 +139,8 @@ public class SSDatabaseH2 { // H2 Database interface
                         SignShop.log("GENKEY from runStatement: " + genKeys.getString(1), Level.INFO);
                     }
                     try {
-                        // TODO: There might not be any way to replace last_insert_rowid() from SQLite.
-                        return genKeys.getInt("last_insert_rowid()"); // this will throw ex but not crash
+                        // RowID is similar to the value called on from last_insert_rowid()
+                        return genKeys.getInt("RowID");
                     } catch(SQLException ex) {
                         SignShop.log("Query: " + Query + " threw exception: " + ex.getMessage(), Level.WARNING);
                         SignShop.log(st.toString(),Level.WARNING); // testing

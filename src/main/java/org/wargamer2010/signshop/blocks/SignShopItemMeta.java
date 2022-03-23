@@ -36,16 +36,33 @@ public class SignShopItemMeta {
     }
 
     public static void init() {
-        SSDatabaseSqlite db = new SSDatabaseSqlite(filename);
         txtColor = SignShopConfig.getTextColor();
         txtColorTwo = SignShopConfig.getTextColorTwo();
-        try {
-            if(!db.tableExists("ItemMeta"))
-                db.runSqliteStatement("CREATE TABLE ItemMeta ( ItemMetaID INTEGER, ItemMetaHash INT, PRIMARY KEY(ItemMetaID) )", null, false);
-            if(!db.tableExists("MetaProperty"))
-                db.runSqliteStatement("CREATE TABLE MetaProperty ( PropertyID INTEGER, ItemMetaID INTEGER, PropertyName TEXT NOT NULL, ProperyValue TEXT NOT NULL, PRIMARY KEY(PropertyID) )", null, false);
-        } finally {
-            db.close();
+
+        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")) {
+            SSDatabaseSqlite db = new SSDatabaseSqlite(filename);
+            try {
+                if(!db.tableExists("ItemMeta"))
+                    db.runSqliteStatement("CREATE TABLE ItemMeta ( ItemMetaID INTEGER, ItemMetaHash INT, " +
+                            "PRIMARY KEY(ItemMetaID) )", null, false);
+                if(!db.tableExists("MetaProperty"))
+                    db.runSqliteStatement("CREATE TABLE MetaProperty ( PropertyID INTEGER, ItemMetaID INTEGER, " +
+                            "PropertyName TEXT NOT NULL, ProperyValue TEXT NOT NULL, PRIMARY KEY(PropertyID) )", null, false);
+            } finally {
+                db.close();
+            }
+        } else {
+            SSDatabaseH2 db = new SSDatabaseH2(filename);
+            try {
+                if(!db.tableExists("ItemMeta"))
+                    db.runH2Statement("CREATE TABLE ItemMeta ( ItemMetaID INTEGER, ItemMetaHash INT, " +
+                            "PRIMARY KEY(ItemMetaID) )", null, false);
+                if(!db.tableExists("MetaProperty"))
+                    db.runH2Statement("CREATE TABLE MetaProperty ( PropertyID INTEGER, ItemMetaID INTEGER, " +
+                            "PropertyName TEXT NOT NULL, ProperyValue TEXT NOT NULL, PRIMARY KEY(PropertyID) )", null, false);
+            } finally {
+                db.close();
+            }
         }
     }
 
@@ -255,7 +272,7 @@ public class SignShopItemMeta {
     }
     //This method is only used for converting legacy data. Deprecation can be ignored until it is no longer valid.
     /** @noinspection deprecation*/
-    public static void setMetaForID(ItemStack stack, Integer ID) {
+    public static void setMetaForID(ItemStack stack, Integer ID) { // TODO: Consider H2 implementation here
         Map<String, String> metamap = new LinkedHashMap<>();
         ItemMeta meta = stack.getItemMeta();
         SSDatabaseSqlite db = new SSDatabaseSqlite(filename);
@@ -344,11 +361,18 @@ public class SignShopItemMeta {
         stack.setItemMeta(meta);
     }
 
-    public static void storeMeta(ItemStack stack) {
+    public static <T> void storeMeta(ItemStack stack) {
         if (hasNoMeta(stack))
             return;
 
-        SSDatabaseSqlite db = new SSDatabaseSqlite(filename);
+        T db;
+
+        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+            db = (T) new SSDatabaseSqlite(filename);
+        } else {
+            db = (T) new SSDatabaseH2(filename);
+        }
+
         Map<String, String> metamap = getMetaAsMap(stack.getItemMeta());
 
         try {
@@ -360,21 +384,43 @@ public class SignShopItemMeta {
             Map<Integer, Object> pars = new LinkedHashMap<>();
             pars.put(1, metamap.hashCode());
 
-            itemmetaid = (Integer)db.runSqliteStatement("INSERT INTO ItemMeta(ItemMetaHash) VALUES (?);", pars, false);
+            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+                itemmetaid = (Integer) ((SSDatabaseSqlite)db).runSqliteStatement(
+                        "INSERT INTO ItemMeta(ItemMetaHash) VALUES (?);", pars, false);
 
-            if(itemmetaid == null || itemmetaid == -1)
-                return;
+                if(itemmetaid == null || itemmetaid == -1)
+                    return;
 
-            for(Map.Entry<String, String> metaproperty : metamap.entrySet()) {
-                pars.clear();
-                pars.put(1, itemmetaid);
-                pars.put(2, metaproperty.getKey());
-                pars.put(3, metaproperty.getValue());
-                db.runSqliteStatement("INSERT INTO MetaProperty(ItemMetaID, PropertyName, ProperyValue) VALUES (?, ?, ?);", pars, false);
+                for(Map.Entry<String, String> metaproperty : metamap.entrySet()) {
+                    pars.clear();
+                    pars.put(1, itemmetaid);
+                    pars.put(2, metaproperty.getKey());
+                    pars.put(3, metaproperty.getValue());
+                    ((SSDatabaseSqlite)db).runSqliteStatement(
+                            "INSERT INTO MetaProperty(ItemMetaID, PropertyName, ProperyValue) VALUES (?, ?, ?);", pars, false);
+                }
+            } else {
+                itemmetaid = (Integer) ((SSDatabaseH2)db).runH2Statement(
+                        "INSERT INTO ItemMeta(ItemMetaHash) VALUES (?);", pars, false);
+
+                if(itemmetaid == null || itemmetaid == -1)
+                    return;
+
+                for(Map.Entry<String, String> metaproperty : metamap.entrySet()) {
+                    pars.clear();
+                    pars.put(1, itemmetaid);
+                    pars.put(2, metaproperty.getKey());
+                    pars.put(3, metaproperty.getValue());
+                    ((SSDatabaseH2)db).runH2Statement(
+                            "INSERT INTO MetaProperty(ItemMetaID, PropertyName, ProperyValue) VALUES (?, ?, ?);", pars, false);
+                }
             }
-
         } finally {
-            db.close();
+            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+                ((SSDatabaseSqlite)db).close();
+            } else {
+                ((SSDatabaseH2)db).close();
+            }
         }
     }
 
@@ -385,21 +431,37 @@ public class SignShopItemMeta {
         return getMetaID(stack, null);
     }
 
-    private static Integer getMetaID(ItemStack stack, Map<String, String> pMetamap) {
+    private static <T> Integer getMetaID(ItemStack stack, Map<String, String> pMetamap) {
         Map<String, String> metamap = (pMetamap != null ? pMetamap : getMetaAsMap(stack.getItemMeta()));
-        SSDatabaseSqlite db = new SSDatabaseSqlite(filename);
-        try {
-            Map<Integer, Object> pars = new LinkedHashMap<>();
-            pars.put(1, metamap.hashCode());
-            ResultSet set = (ResultSet)db.runSqliteStatement("SELECT ItemMetaID FROM ItemMeta WHERE ItemMetaHash = ?;", pars, true);
-            if(set != null && set.next())
-                return set.getInt("ItemMetaID");
-        } catch (SQLException ignored) {
+        T db;
 
-        } finally {
-            db.close();
+        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+            db = (T) new SSDatabaseSqlite(filename);
+            try {
+                Map<Integer, Object> pars = new LinkedHashMap<>();
+                pars.put(1, metamap.hashCode());
+                ResultSet set = (ResultSet)((SSDatabaseSqlite)db).runSqliteStatement(
+                        "SELECT ItemMetaID FROM ItemMeta WHERE ItemMetaHash = ?;", pars, true);
+                if(set != null && set.next())
+                    return set.getInt("ItemMetaID");
+            } catch (SQLException ignored) {
+            } finally {
+                ((SSDatabaseSqlite)db).close();
+            }
+        } else {
+            db = (T) new SSDatabaseH2(filename);
+            try {
+                Map<Integer, Object> pars = new LinkedHashMap<>();
+                pars.put(1, metamap.hashCode());
+                ResultSet set = (ResultSet)((SSDatabaseH2)db).runH2Statement(
+                        "SELECT ItemMetaID FROM ItemMeta WHERE ItemMetaHash = ?;", pars, true);
+                if(set != null && set.next())
+                    return set.getInt("ItemMetaID");
+            } catch (SQLException ignored) {
+            } finally {
+                ((SSDatabaseSqlite)db).close();
+            }
         }
-
         return -1;
     }
 
