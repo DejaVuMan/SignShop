@@ -3,7 +3,9 @@ package org.wargamer2010.signshop.player;
 
 import org.bukkit.plugin.Plugin;
 import org.wargamer2010.signshop.SignShop;
+import org.wargamer2010.signshop.blocks.SSDatabaseH2;
 import org.wargamer2010.signshop.blocks.SSDatabaseSqlite;
+import org.wargamer2010.signshop.configuration.SignShopConfig;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -24,12 +26,26 @@ public class PlayerMetadata {
     }
 
     public static void init() {
-        SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
-        try {
-            if(!metadb.tableExists("PlayerMeta"))
-                metadb.runSqliteStatement("CREATE TABLE PlayerMeta ( PlayerMetaID INTEGER, Playername TEXT NOT NULL, Plugin TEXT NOT NULL, Metakey TEXT NOT NULL, Metavalue TEXT NOT NULL, PRIMARY KEY(PlayerMetaID) )", null, false);
-        } finally {
-            metadb.close();
+        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+            SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
+            try {
+                if(!metadb.tableExists("PlayerMeta"))
+                    metadb.runSqliteStatement(
+                            "CREATE TABLE PlayerMeta ( PlayerMetaID INTEGER, Playername TEXT NOT NULL, " +
+                                    "Plugin TEXT NOT NULL, Metakey TEXT NOT NULL, Metavalue TEXT NOT NULL, PRIMARY KEY(PlayerMetaID) )", null, false);
+            } finally {
+                metadb.close();
+            }
+        } else {
+            SSDatabaseH2 metadb = new SSDatabaseH2(filename);
+            try {
+                if(!metadb.tableExists("PlayerMeta"))
+                    metadb.runH2Statement(
+                            "CREATE TABLE PlayerMeta ( PlayerMetaID INTEGER, Playername TEXT NOT NULL, " +
+                                    "Plugin TEXT NOT NULL, Metakey TEXT NOT NULL, Metavalue TEXT NOT NULL, RowID INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY(PlayerMetaID) )", null, false);
+            } finally {
+                metadb.close();
+            }
         }
     }
 
@@ -44,16 +60,31 @@ public class PlayerMetadata {
      * @param pPlugin Plugin
      */
     // Assignment is used in case of exception
-    public static void convertToUuid(Plugin pPlugin) {
+    public static <T> void convertToUuid(Plugin pPlugin) {
         if (!PlayerIdentifier.GetUUIDSupport())
             return; // Legacy mode
-        SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
+
+        T metadb;
+
         Map<Integer, Object> params = new LinkedHashMap<>();
         params.put(1, pPlugin.getName());
         ToConvert lastAttempt = null;
 
+        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+            metadb = (T) new SSDatabaseSqlite(filename);
+        } else {
+            metadb = (T) new SSDatabaseH2(filename);
+        }
+
         try {
-            ResultSet set = (ResultSet) metadb.runSqliteStatement("SELECT Playername, Metakey, Metavalue FROM PlayerMeta WHERE Plugin = ?", params, true);
+            ResultSet set;
+            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+                set = (ResultSet) ((SSDatabaseSqlite)metadb).runSqliteStatement(
+                        "SELECT Playername, Metakey, Metavalue FROM PlayerMeta WHERE Plugin = ?", params, true);
+            } else {
+                set = (ResultSet) ((SSDatabaseH2)metadb).runH2Statement(
+                        "SELECT Playername, Metakey, Metavalue FROM PlayerMeta WHERE Plugin = ?", params, true);
+            }
             if (set == null)
                 return;
             List<ToConvert> toConverts = new LinkedList<>();
@@ -88,33 +119,60 @@ public class PlayerMetadata {
                 params.put(1, pPlugin.getName());
                 params.put(2, convert.playerName);
                 params.put(3, convert.metakey);
-                metadb.runSqliteStatement("DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false);
+                if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")) {
+                    ((SSDatabaseSqlite)metadb).runSqliteStatement(
+                            "DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false);
+                } else {
+                    ((SSDatabaseH2)metadb).runH2Statement(
+                            "DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false);
+                }
 
                 params.clear();
                 params.put(1, pPlugin.getName());
                 params.put(2, convert.newId);
                 params.put(3, convert.metakey);
                 params.put(4, convert.metavalue);
-                metadb.runSqliteStatement("INSERT INTO PlayerMeta(Plugin, Playername, Metakey, Metavalue) VALUES (?, ?, ?, ?)", params, false);
+                if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")) {
+                    ((SSDatabaseSqlite)metadb).runSqliteStatement("INSERT INTO PlayerMeta(Plugin, Playername, Metakey, Metavalue) VALUES (?, ?, ?, ?)", params, false);
+                } else {
+                    ((SSDatabaseH2)metadb).runH2Statement("INSERT INTO PlayerMeta(Plugin, Playername, Metakey, Metavalue) VALUES (?, ?, ?, ?)", params, false);
+                }
             }
         } catch (SQLException ex) {
             SignShop.log("Failed to convert Player names to UUID in PlayerMeta table because: " + ex.getMessage(), Level.WARNING);
             if (lastAttempt != null)
                 SignShop.log(String.format("Failed conversion at meta for player '%s' with metakey '%s'", lastAttempt.playerName, lastAttempt.metakey), Level.WARNING);
         } finally {
-            metadb.close();
+            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+                ((SSDatabaseSqlite)metadb).close();
+            } else {
+                ((SSDatabaseH2)metadb).close();
+            }
         }
     }
 
-    public String getMetaValue(String key) {
-        SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
+    public <T> String getMetaValue(String key) {
         Map<Integer, Object> params = new LinkedHashMap<>();
         params.put(1, plugin.getName());
         params.put(2, ssPlayer.GetIdentifier().toString());
         params.put(3, key);
 
+        T metadb;
+        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+            metadb = (T) new SSDatabaseSqlite(filename);
+        } else {
+            metadb = (T) new SSDatabaseH2(filename);
+        }
+
         try {
-            ResultSet set = (ResultSet)metadb.runSqliteStatement("SELECT Metavalue FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, true);
+            ResultSet set;
+            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")) {
+                set = (ResultSet) ((SSDatabaseSqlite) metadb).runSqliteStatement(
+                        "SELECT Metavalue FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, true);
+            } else {
+                set = (ResultSet) ((SSDatabaseH2) metadb).runH2Statement(
+                        "SELECT Metavalue FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, true);
+            }
             if(set == null)
                 return null;
             if(set.next())
@@ -124,65 +182,131 @@ public class PlayerMetadata {
         } catch(SQLException ex) {
             return null;
         } finally {
-            metadb.close();
+            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+                ((SSDatabaseSqlite)metadb).close();
+            } else {
+                ((SSDatabaseH2)metadb).close();
+            }
         }
     }
 
-    public boolean setMetavalue(String key, String value) {
+    public <T> boolean setMetavalue(String key, String value) {
         if(getMetaValue(key) != null) {
             return updateMeta(key, value);
         }
-        SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
+        T metadb;
+        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+            metadb = (T) new SSDatabaseSqlite(filename);
+        } else {
+            metadb = (T) new SSDatabaseH2(filename);
+        }
         try {
             Map<Integer, Object> params = new LinkedHashMap<>();
             params.put(1, plugin.getName());
             params.put(2, ssPlayer.GetIdentifier().toString());
             params.put(3, key);
             params.put(4, value);
-            return (metadb.runSqliteStatement("INSERT INTO PlayerMeta(Plugin, Playername, Metakey, Metavalue) VALUES (?, ?, ?, ?)", params, false) != null);
+            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")) {
+                return (((SSDatabaseSqlite)metadb).runSqliteStatement(
+                        "INSERT INTO PlayerMeta(Plugin, Playername, Metakey, Metavalue) VALUES (?, ?, ?, ?)", params, false) != null);
+            } else {
+                return (((SSDatabaseH2)metadb).runH2Statement(
+                        "INSERT INTO PlayerMeta(Plugin, Playername, Metakey, Metavalue) VALUES (?, ?, ?, ?)", params, false) != null);
+            }
         } finally {
-            metadb.close();
-        }
-
-    }
-
-    public boolean updateMeta(String key, String value) {
-        SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
-        try {
-            Map<Integer, Object> params = new LinkedHashMap<>();
-            params.put(1, value);
-            params.put(2, plugin.getName());
-            params.put(3, ssPlayer.GetIdentifier().toString());
-            params.put(4, key);
-            return (metadb.runSqliteStatement("UPDATE PlayerMeta SET Metavalue = ? WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false) != null);
-        } finally {
-            metadb.close();
+            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")) {
+                ((SSDatabaseSqlite)metadb).close();
+            } else {
+                ((SSDatabaseH2)metadb).close();
+            }
         }
     }
 
-    public boolean removeMeta(String key) {
-        SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
-        try {
-            Map<Integer, Object> params = new LinkedHashMap<>();
-            params.put(1, plugin.getName());
-            params.put(2, ssPlayer.GetIdentifier().toString());
-            params.put(3, key);
-            return (metadb.runSqliteStatement("DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false) != null);
-        } finally {
-            metadb.close();
+    public <T> boolean updateMeta(String key, String value) {
+        if(getMetaValue(key) != null) {
+            return updateMeta(key, value);
         }
-    }
-
-    public void removeMetakeyLike(String key) {
-        SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
+        T metadb;
+        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+            metadb = (T) new SSDatabaseSqlite(filename);
+        } else {
+            metadb = (T) new SSDatabaseH2(filename);
+        }
         try {
             Map<Integer, Object> params = new LinkedHashMap<>();
             params.put(1, plugin.getName());
             params.put(2, ssPlayer.GetIdentifier().toString());
             params.put(3, key);
-            metadb.runSqliteStatement("DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey LIKE ?", params, false);
+            params.put(4, value);
+            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")) {
+                return (((SSDatabaseSqlite)metadb).runSqliteStatement(
+                "UPDATE PlayerMeta SET Metavalue = ? WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false) != null);
+            } else {
+                return (((SSDatabaseH2)metadb).runH2Statement(
+                        "UPDATE PlayerMeta SET Metavalue = ? WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false) != null);
+            }
         } finally {
-            metadb.close();
+            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")) {
+                ((SSDatabaseSqlite)metadb).close();
+            } else {
+                ((SSDatabaseH2)metadb).close();
+            }
+        }
+    }
+
+    public <T> boolean removeMeta(String key) {
+        T metadb;
+        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+            metadb = (T) new SSDatabaseSqlite(filename);
+        } else {
+            metadb = (T) new SSDatabaseH2(filename);
+        }
+        try {
+            Map<Integer, Object> params = new LinkedHashMap<>();
+            params.put(1, plugin.getName());
+            params.put(2, ssPlayer.GetIdentifier().toString());
+            params.put(3, key);
+            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+                return (((SSDatabaseSqlite)metadb).runSqliteStatement(
+                        "DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false) != null);
+            } else {
+                return (((SSDatabaseH2)metadb).runH2Statement(
+                        "DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false) != null);
+            }
+        } finally {
+            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")) {
+                ((SSDatabaseSqlite)metadb).close();
+            } else {
+                ((SSDatabaseH2)metadb).close();
+            }
+        }
+    }
+
+    public <T> void removeMetakeyLike(String key) {
+        T metadb;
+        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+            metadb = (T) new SSDatabaseSqlite(filename);
+        } else {
+            metadb = (T) new SSDatabaseH2(filename);
+        }
+        try {
+            Map<Integer, Object> params = new LinkedHashMap<>();
+            params.put(1, plugin.getName());
+            params.put(2, ssPlayer.GetIdentifier().toString());
+            params.put(3, key);
+            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+                ((SSDatabaseSqlite)metadb).runSqliteStatement(
+                        "DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey LIKE ?", params, false);
+            } else {
+                ((SSDatabaseH2)metadb).runH2Statement(
+                        "DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey LIKE ?", params, false);
+            }
+        } finally {
+            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")) {
+                ((SSDatabaseSqlite)metadb).close();
+            } else {
+                ((SSDatabaseH2)metadb).close();
+            }
         }
     }
 

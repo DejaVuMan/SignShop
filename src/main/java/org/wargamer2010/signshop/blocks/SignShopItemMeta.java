@@ -59,7 +59,7 @@ public class SignShopItemMeta {
                             "PRIMARY KEY(ItemMetaID) )", null, false);
                 if(!db.tableExists("MetaProperty"))
                     db.runH2Statement("CREATE TABLE MetaProperty ( PropertyID INTEGER, ItemMetaID INTEGER, " +
-                            "PropertyName TEXT NOT NULL, ProperyValue TEXT NOT NULL, PRIMARY KEY(PropertyID) )", null, false);
+                            "PropertyName TEXT NOT NULL, ProperyValue TEXT NOT NULL, RowID INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY(PropertyID) )", null, false);
             } finally {
                 db.close();
             }
