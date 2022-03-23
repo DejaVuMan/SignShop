@@ -35,10 +35,11 @@ public class SignShopBooks {
             }
         } else {
             SSDatabaseH2 db = new SSDatabaseH2(filename);
-
+            // H2 differs, as we can't make use of the last_insert_rowid() function since its SQLite-only
+            // instead, we add an aditional column to the table, RowID, which will auto-increment by 1
             if(!db.tableExists("Book")) {
                 db.runH2Statement("CREATE TABLE Book ( BookID INTEGER, Title TEXT NOT NULL, Author VARCHAR(200) NOT NULL, Pages TEXT, "
-                        + "Generation INTEGER NOT NULL DEFAULT -1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(BookID) )", null, false);
+                        + "Generation INTEGER NOT NULL DEFAULT -1, RowID INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY(BookID) )", null, false);
                 db.close();
             } else if(!db.columnExists("Generation")) {
                 db.open();
