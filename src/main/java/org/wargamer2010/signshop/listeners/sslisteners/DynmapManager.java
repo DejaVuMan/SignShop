@@ -7,7 +7,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
-import org.dynmap.DynmapAPI;
+import org.dynmap.DynmapCommonAPI;
 import org.dynmap.markers.Marker;
 import org.dynmap.markers.MarkerAPI;
 import org.dynmap.markers.MarkerIcon;
@@ -26,7 +26,7 @@ import java.io.InputStream;
 import java.util.logging.Level;
 
 public class DynmapManager implements Listener {
-    private DynmapAPI dynmapAPI = null;
+    private DynmapCommonAPI dynmapCommonAPI = null;
     private MarkerAPI markerAPI = null;
     private MarkerSet ms = null;
     private MarkerIcon mi = null;
@@ -43,7 +43,7 @@ public class DynmapManager implements Listener {
 
     private boolean safelyCheckInit() {
         try {
-            return dynmapAPI != null && dynmapAPI.markerAPIInitialized();
+            return dynmapCommonAPI != null && dynmapCommonAPI.markerAPIInitialized();
         } catch(NullPointerException ex) {
             // markerAPIInitialized call doesn't null check
             return false;
@@ -55,10 +55,10 @@ public class DynmapManager implements Listener {
         if(plugin == null)
             return;
 
-        dynmapAPI = (DynmapAPI)plugin;
+        dynmapCommonAPI = (DynmapCommonAPI) plugin;
         if(!SignShopConfig.getEnableDynmapSupport()) {
             if(safelyCheckInit()) {
-                MarkerSet temp = dynmapAPI.getMarkerAPI().getMarkerSet(MarkerSetName);
+                MarkerSet temp = dynmapCommonAPI.getMarkerAPI().getMarkerSet(MarkerSetName);
                 if(temp != null)
                     temp.deleteMarkerSet();
             }
@@ -70,7 +70,7 @@ public class DynmapManager implements Listener {
             return;
         }
 
-        markerAPI = dynmapAPI.getMarkerAPI();
+        markerAPI = dynmapCommonAPI.getMarkerAPI();
         ms = markerAPI.getMarkerSet(MarkerSetName);
         if(ms == null)
             ms = markerAPI.createMarkerSet(MarkerSetName, MarkerSetLabel, null, false);
