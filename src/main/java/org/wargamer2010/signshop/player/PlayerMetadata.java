@@ -3,7 +3,7 @@ package org.wargamer2010.signshop.player;
 
 import org.bukkit.plugin.Plugin;
 import org.wargamer2010.signshop.SignShop;
-import org.wargamer2010.signshop.blocks.SSDatabase;
+import org.wargamer2010.signshop.blocks.SSDatabaseSqlite;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -24,10 +24,10 @@ public class PlayerMetadata {
     }
 
     public static void init() {
-        SSDatabase metadb = new SSDatabase(filename);
+        SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
         try {
             if(!metadb.tableExists("PlayerMeta"))
-                metadb.runStatement("CREATE TABLE PlayerMeta ( PlayerMetaID INTEGER, Playername TEXT NOT NULL, Plugin TEXT NOT NULL, Metakey TEXT NOT NULL, Metavalue TEXT NOT NULL, PRIMARY KEY(PlayerMetaID) )", null, false);
+                metadb.runSqliteStatement("CREATE TABLE PlayerMeta ( PlayerMetaID INTEGER, Playername TEXT NOT NULL, Plugin TEXT NOT NULL, Metakey TEXT NOT NULL, Metavalue TEXT NOT NULL, PRIMARY KEY(PlayerMetaID) )", null, false);
         } finally {
             metadb.close();
         }
@@ -47,13 +47,13 @@ public class PlayerMetadata {
     public static void convertToUuid(Plugin pPlugin) {
         if (!PlayerIdentifier.GetUUIDSupport())
             return; // Legacy mode
-        SSDatabase metadb = new SSDatabase(filename);
+        SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
         Map<Integer, Object> params = new LinkedHashMap<>();
         params.put(1, pPlugin.getName());
         ToConvert lastAttempt = null;
 
         try {
-            ResultSet set = (ResultSet) metadb.runStatement("SELECT Playername, Metakey, Metavalue FROM PlayerMeta WHERE Plugin = ?", params, true);
+            ResultSet set = (ResultSet) metadb.runSqliteStatement("SELECT Playername, Metakey, Metavalue FROM PlayerMeta WHERE Plugin = ?", params, true);
             if (set == null)
                 return;
             List<ToConvert> toConverts = new LinkedList<>();
@@ -88,14 +88,14 @@ public class PlayerMetadata {
                 params.put(1, pPlugin.getName());
                 params.put(2, convert.playerName);
                 params.put(3, convert.metakey);
-                metadb.runStatement("DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false);
+                metadb.runSqliteStatement("DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false);
 
                 params.clear();
                 params.put(1, pPlugin.getName());
                 params.put(2, convert.newId);
                 params.put(3, convert.metakey);
                 params.put(4, convert.metavalue);
-                metadb.runStatement("INSERT INTO PlayerMeta(Plugin, Playername, Metakey, Metavalue) VALUES (?, ?, ?, ?)", params, false);
+                metadb.runSqliteStatement("INSERT INTO PlayerMeta(Plugin, Playername, Metakey, Metavalue) VALUES (?, ?, ?, ?)", params, false);
             }
         } catch (SQLException ex) {
             SignShop.log("Failed to convert Player names to UUID in PlayerMeta table because: " + ex.getMessage(), Level.WARNING);
@@ -107,14 +107,14 @@ public class PlayerMetadata {
     }
 
     public String getMetaValue(String key) {
-        SSDatabase metadb = new SSDatabase(filename);
+        SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
         Map<Integer, Object> params = new LinkedHashMap<>();
         params.put(1, plugin.getName());
         params.put(2, ssPlayer.GetIdentifier().toString());
         params.put(3, key);
 
         try {
-            ResultSet set = (ResultSet)metadb.runStatement("SELECT Metavalue FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, true);
+            ResultSet set = (ResultSet)metadb.runSqliteStatement("SELECT Metavalue FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, true);
             if(set == null)
                 return null;
             if(set.next())
@@ -132,14 +132,14 @@ public class PlayerMetadata {
         if(getMetaValue(key) != null) {
             return updateMeta(key, value);
         }
-        SSDatabase metadb = new SSDatabase(filename);
+        SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
         try {
             Map<Integer, Object> params = new LinkedHashMap<>();
             params.put(1, plugin.getName());
             params.put(2, ssPlayer.GetIdentifier().toString());
             params.put(3, key);
             params.put(4, value);
-            return (metadb.runStatement("INSERT INTO PlayerMeta(Plugin, Playername, Metakey, Metavalue) VALUES (?, ?, ?, ?)", params, false) != null);
+            return (metadb.runSqliteStatement("INSERT INTO PlayerMeta(Plugin, Playername, Metakey, Metavalue) VALUES (?, ?, ?, ?)", params, false) != null);
         } finally {
             metadb.close();
         }
@@ -147,40 +147,40 @@ public class PlayerMetadata {
     }
 
     public boolean updateMeta(String key, String value) {
-        SSDatabase metadb = new SSDatabase(filename);
+        SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
         try {
             Map<Integer, Object> params = new LinkedHashMap<>();
             params.put(1, value);
             params.put(2, plugin.getName());
             params.put(3, ssPlayer.GetIdentifier().toString());
             params.put(4, key);
-            return (metadb.runStatement("UPDATE PlayerMeta SET Metavalue = ? WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false) != null);
+            return (metadb.runSqliteStatement("UPDATE PlayerMeta SET Metavalue = ? WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false) != null);
         } finally {
             metadb.close();
         }
     }
 
     public boolean removeMeta(String key) {
-        SSDatabase metadb = new SSDatabase(filename);
+        SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
         try {
             Map<Integer, Object> params = new LinkedHashMap<>();
             params.put(1, plugin.getName());
             params.put(2, ssPlayer.GetIdentifier().toString());
             params.put(3, key);
-            return (metadb.runStatement("DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false) != null);
+            return (metadb.runSqliteStatement("DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey = ?", params, false) != null);
         } finally {
             metadb.close();
         }
     }
 
     public void removeMetakeyLike(String key) {
-        SSDatabase metadb = new SSDatabase(filename);
+        SSDatabaseSqlite metadb = new SSDatabaseSqlite(filename);
         try {
             Map<Integer, Object> params = new LinkedHashMap<>();
             params.put(1, plugin.getName());
             params.put(2, ssPlayer.GetIdentifier().toString());
             params.put(3, key);
-            metadb.runStatement("DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey LIKE ?", params, false);
+            metadb.runSqliteStatement("DELETE FROM PlayerMeta WHERE Plugin = ? AND Playername = ? AND Metakey LIKE ?", params, false);
         } finally {
             metadb.close();
         }

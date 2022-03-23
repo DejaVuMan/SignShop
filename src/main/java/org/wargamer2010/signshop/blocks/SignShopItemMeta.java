@@ -36,14 +36,14 @@ public class SignShopItemMeta {
     }
 
     public static void init() {
-        SSDatabase db = new SSDatabase(filename);
+        SSDatabaseSqlite db = new SSDatabaseSqlite(filename);
         txtColor = SignShopConfig.getTextColor();
         txtColorTwo = SignShopConfig.getTextColorTwo();
         try {
             if(!db.tableExists("ItemMeta"))
-                db.runStatement("CREATE TABLE ItemMeta ( ItemMetaID INTEGER, ItemMetaHash INT, PRIMARY KEY(ItemMetaID) )", null, false);
+                db.runSqliteStatement("CREATE TABLE ItemMeta ( ItemMetaID INTEGER, ItemMetaHash INT, PRIMARY KEY(ItemMetaID) )", null, false);
             if(!db.tableExists("MetaProperty"))
-                db.runStatement("CREATE TABLE MetaProperty ( PropertyID INTEGER, ItemMetaID INTEGER, PropertyName TEXT NOT NULL, ProperyValue TEXT NOT NULL, PRIMARY KEY(PropertyID) )", null, false);
+                db.runSqliteStatement("CREATE TABLE MetaProperty ( PropertyID INTEGER, ItemMetaID INTEGER, PropertyName TEXT NOT NULL, ProperyValue TEXT NOT NULL, PRIMARY KEY(PropertyID) )", null, false);
         } finally {
             db.close();
         }
@@ -258,13 +258,13 @@ public class SignShopItemMeta {
     public static void setMetaForID(ItemStack stack, Integer ID) {
         Map<String, String> metamap = new LinkedHashMap<>();
         ItemMeta meta = stack.getItemMeta();
-        SSDatabase db = new SSDatabase(filename);
+        SSDatabaseSqlite db = new SSDatabaseSqlite(filename);
 
         try {
             Map<Integer, Object> pars = new LinkedHashMap<>();
             pars.put(1, ID);
 
-            ResultSet setprops = (ResultSet)db.runStatement("SELECT PropertyName, ProperyValue FROM MetaProperty WHERE ItemMetaID = ?;", pars, true);
+            ResultSet setprops = (ResultSet)db.runSqliteStatement("SELECT PropertyName, ProperyValue FROM MetaProperty WHERE ItemMetaID = ?;", pars, true);
             if(setprops == null)
                 return;
             try {
@@ -348,7 +348,7 @@ public class SignShopItemMeta {
         if (hasNoMeta(stack))
             return;
 
-        SSDatabase db = new SSDatabase(filename);
+        SSDatabaseSqlite db = new SSDatabaseSqlite(filename);
         Map<String, String> metamap = getMetaAsMap(stack.getItemMeta());
 
         try {
@@ -360,7 +360,7 @@ public class SignShopItemMeta {
             Map<Integer, Object> pars = new LinkedHashMap<>();
             pars.put(1, metamap.hashCode());
 
-            itemmetaid = (Integer)db.runStatement("INSERT INTO ItemMeta(ItemMetaHash) VALUES (?);", pars, false);
+            itemmetaid = (Integer)db.runSqliteStatement("INSERT INTO ItemMeta(ItemMetaHash) VALUES (?);", pars, false);
 
             if(itemmetaid == null || itemmetaid == -1)
                 return;
@@ -370,7 +370,7 @@ public class SignShopItemMeta {
                 pars.put(1, itemmetaid);
                 pars.put(2, metaproperty.getKey());
                 pars.put(3, metaproperty.getValue());
-                db.runStatement("INSERT INTO MetaProperty(ItemMetaID, PropertyName, ProperyValue) VALUES (?, ?, ?);", pars, false);
+                db.runSqliteStatement("INSERT INTO MetaProperty(ItemMetaID, PropertyName, ProperyValue) VALUES (?, ?, ?);", pars, false);
             }
 
         } finally {
@@ -387,11 +387,11 @@ public class SignShopItemMeta {
 
     private static Integer getMetaID(ItemStack stack, Map<String, String> pMetamap) {
         Map<String, String> metamap = (pMetamap != null ? pMetamap : getMetaAsMap(stack.getItemMeta()));
-        SSDatabase db = new SSDatabase(filename);
+        SSDatabaseSqlite db = new SSDatabaseSqlite(filename);
         try {
             Map<Integer, Object> pars = new LinkedHashMap<>();
             pars.put(1, metamap.hashCode());
-            ResultSet set = (ResultSet)db.runStatement("SELECT ItemMetaID FROM ItemMeta WHERE ItemMetaHash = ?;", pars, true);
+            ResultSet set = (ResultSet)db.runSqliteStatement("SELECT ItemMetaID FROM ItemMeta WHERE ItemMetaHash = ?;", pars, true);
             if(set != null && set.next())
                 return set.getInt("ItemMetaID");
         } catch (SQLException ignored) {

@@ -80,6 +80,8 @@ public class SignShopConfig {
     private static Material updateMaterial = Material.getMaterial("INK_SAC");
     private static Material destroyMaterial = Material.getMaterial("GOLDEN_AXE");
     private static Material inspectMaterial = Material.getMaterial("WRITABLE_BOOK");
+    public static String SqlDbTypeSelector = "SQLite";
+    // default will always be "SQLite" in Config file unless user changes it to "H2"
 
 
     private SignShopConfig() {
@@ -213,6 +215,9 @@ public class SignShopConfig {
         if (ymlThing == null)
             return;
         configUtil.loadYMLFromJar(ymlThing, configFilename);
+
+        SqlDbTypeSelector = ymlThing.getString("SqlDbTypeSelector", SqlDbTypeSelector);
+        // TODO: Finalize Implementation of SQL "Mode" selector and H2-based files
 
         ConfigVersionDoNotTouch = ymlThing.getInt("ConfigVersionDoNotTouch", ConfigVersionDoNotTouch);
         MaxSellDistance = ymlThing.getInt("MaxSellDistance", MaxSellDistance);

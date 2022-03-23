@@ -1,4 +1,3 @@
-
 package org.wargamer2010.signshop.blocks;
 
 import org.wargamer2010.signshop.SignShop;
@@ -10,13 +9,14 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
 
-public class SSDatabase {
-    private static final String downloadURL = "http://cloud.github.com/downloads/wargamer/SignShop/";
+public class SSDatabaseH2 { // H2 Database interface
+    //private static final String downloadURL = "http://cloud.github.com/downloads/wargamer/SignShop/";
+    // ^^^ What is this used for? Doesn't seem to be used when using H2 JDBC drivers
     private static Driver driver = null;
     private Connection conn = null;
     private String filename;
 
-    public SSDatabase(final String pFilename) {
+    public SSDatabaseH2(final String pFilename){
         filename = pFilename;
 
         if(driver == null)
@@ -27,7 +27,17 @@ public class SSDatabase {
             SignShop.log("Connection to: " + filename + " could not be established", Level.WARNING);
     }
 
-    private void checkLegacy() {
+    public final void loadLib() {
+        try {
+            Class.forName("org.h2.Driver");
+        } catch(ClassNotFoundException ex) {
+            SignShop.log("Could not find JDBC class in Bukkit JAR, please report this issue with details at http://tiny.cc/signshop", Level.SEVERE);
+            return;
+        }
+        driver = new org.h2.Driver();
+    }
+
+    private void checkLegacy() { // this is duplicated, can we avoid this?
         String dbdirname = "db";
         File dbdir = new File(SignShop.getInstance().getDataFolder(), dbdirname);
         if(!dbdir.exists() && !dbdir.mkdirs()) {
@@ -46,60 +56,13 @@ public class SSDatabase {
         filename = (dbdirname + File.separator + filename);
     }
 
-    public Boolean tableExists(String tablename) {
-        try {
-            Map<Integer, Object> pars = new LinkedHashMap<>();
-            pars.put(1, "table");
-            pars.put(2, tablename);
-            ResultSet set = (ResultSet)runStatement("SELECT name FROM sqlite_master WHERE type = ? AND name = ?;", pars, true);
-            if(set != null && set.next()) {
-                set.close();
-                return true;
-            }
-        } catch (SQLException ignored) {
-        }
-
-        return false;
-    }
-
-    public boolean columnExists(String needle) {
-        ResultSet result = (ResultSet) runStatement("PRAGMA table_info(Book);", null, true);
-        if(result == null)
-            return false;
-
-        try {
-            do {
-                String columnName = result.getString("name");
-                if(columnName.equalsIgnoreCase(needle))
-                    return true;
-            } while(result.next());
-        } catch (SQLException ex) {
-            SignShop.log("Failed to check for column existence on Book table because: " + ex.getMessage(), Level.WARNING);
-        } finally {
-            close();
-        }
-
-        return false;
-    }
-
-    public final void loadLib() {
-        try {
-            Class.forName("org.sqlite.JDBC");
-        } catch(ClassNotFoundException ex) {
-            SignShop.log("Could not find JDBC class in Bukkit JAR, please report this issue with details at http://tiny.cc/signshop", Level.SEVERE);
-            return;
-        }
-        driver = new org.sqlite.JDBC();
-    }
-
     public final boolean open() {
         if(driver == null)
             return false;
         try {
             File DBFile = new File(SignShop.getInstance().getDataFolder(), filename);
-            conn = driver.connect("jdbc:sqlite:" + DBFile.getPath(), new Properties());
+            conn = driver.connect("jdbc:h2:file:./" + DBFile.getPath()+";MODE=MySQL", new Properties());
         } catch (SQLException ignored) {
-
         }
         return (conn != null);
     }
@@ -113,13 +76,46 @@ public class SSDatabase {
         }
     }
 
-    public Object runStatement(String Query, Map<Integer, Object> params, Boolean expectingResult) {
+    public Boolean tableExists(String tablename) {
+        try {
+            Map<Integer, Object> pars = new LinkedHashMap<>();
+            ResultSet set = (ResultSet)runH2Statement("SELECT * FROM " + tablename, pars, true);
+            // Is doing SELECT * FROM + tablename an SQL Injection vulnerability?
+            if(set != null && set.next()) {
+                set.close();
+                return true;
+            }
+        } catch (SQLException ignored) {
+        }
+        return false;
+    }
+
+    public boolean columnExists(String needle){
+        ResultSet result = (ResultSet)runH2Statement("PRAGMA table_info(Book);", null, true);
+        if(result == null)
+            return false;
+        try {
+            do {
+                String columnName = result.getString("name");
+                if(columnName.equalsIgnoreCase(needle))
+                    return true;
+            } while(result.next());
+        } catch (SQLException ex) {
+            SignShop.log("Failed to check for column existence on Book table because: " + ex.getMessage(), Level.WARNING);
+        } finally {
+            close();
+        }
+        return false;
+    }
+
+    public Object runH2Statement(String Query, Map<Integer, Object> params, Boolean expectingResult) {
         try {
             if(conn == null) {
                 SignShop.log("Query: " + Query + " could not be run because the connection to: " + filename + " could not be established", Level.WARNING);
                 return null;
             }
             PreparedStatement st = conn.prepareStatement(Query, PreparedStatement.RETURN_GENERATED_KEYS);
+            SignShop.log(st.toString(),Level.WARNING);
 
             if(params != null && !params.isEmpty()) {
                 for(Map.Entry<Integer, Object> param : params.entrySet()) {
@@ -131,6 +127,7 @@ public class SSDatabase {
                 }
             }
             if(expectingResult) {
+                SignShop.log("from expectingresult check: " + st,Level.WARNING); // testing
                 return st.executeQuery();
             } else {
                 int result = st.executeUpdate();
@@ -138,16 +135,21 @@ public class SSDatabase {
                 if(genKeys == null)
                     return result;
                 else {
+                    while(genKeys.next()){ // move cursor forward
+                        SignShop.log("GENKEY from runStatement: " + genKeys.getString(1), Level.INFO);
+                    }
                     try {
-                        return genKeys.getInt("last_insert_rowid()");
+                        // TODO: There might not be any way to replace last_insert_rowid() from SQLite.
+                        return genKeys.getInt("last_insert_rowid()"); // this will throw ex but not crash
                     } catch(SQLException ex) {
                         SignShop.log("Query: " + Query + " threw exception: " + ex.getMessage(), Level.WARNING);
+                        SignShop.log(st.toString(),Level.WARNING); // testing
                         return result;
                     }
                 }
             }
         } catch(SQLException ex) {
-            SignShop.log("Query: " + Query + " threw exception: " + ex.getMessage(), Level.WARNING);
+            SignShop.log("Outer SQLException - Query: " + Query + " threw exception: " + ex.getMessage(), Level.WARNING);
             return null;
         }
     }
