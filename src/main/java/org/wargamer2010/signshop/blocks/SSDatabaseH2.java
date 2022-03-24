@@ -138,7 +138,9 @@ public class SSDatabaseH2 { // H2 Database interface
                 else {
                     try {
                         // RowID is similar to the value called on from last_insert_rowid()
-                        return genKeys.getInt("RowID");
+                        if(genKeys.next()) // increment cursor
+                            return genKeys.getInt("ROWID");
+                        return null;
                     } catch(SQLException ex) {
                         SignShop.log("Query: " + Query + " threw exception: " + ex.getMessage(), Level.WARNING);
                         SignShop.log(st.toString(),Level.WARNING); // testing
