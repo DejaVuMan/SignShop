@@ -367,7 +367,7 @@ public class SignShopItemMeta {
 
         T db;
 
-        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+        if(SignShopConfig.getDbType().equals("SQLite")){
             db = (T) new SSDatabaseSqlite(filename);
         } else {
             db = (T) new SSDatabaseH2(filename);
@@ -384,7 +384,7 @@ public class SignShopItemMeta {
             Map<Integer, Object> pars = new LinkedHashMap<>();
             pars.put(1, metamap.hashCode());
 
-            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+            if(SignShopConfig.getDbType().equals("SQLite")){
                 itemmetaid = (Integer) ((SSDatabaseSqlite)db).runSqliteStatement(
                         "INSERT INTO ItemMeta(ItemMetaHash) VALUES (?);", pars, false);
 
@@ -416,7 +416,7 @@ public class SignShopItemMeta {
                 }
             }
         } finally {
-            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+            if(SignShopConfig.getDbType().equals("SQLite")){
                 ((SSDatabaseSqlite)db).close();
             } else {
                 ((SSDatabaseH2)db).close();
@@ -435,7 +435,7 @@ public class SignShopItemMeta {
         Map<String, String> metamap = (pMetamap != null ? pMetamap : getMetaAsMap(stack.getItemMeta()));
         T db;
 
-        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+        if(SignShopConfig.getDbType().equals("SQLite")){
             db = (T) new SSDatabaseSqlite(filename);
             try {
                 Map<Integer, Object> pars = new LinkedHashMap<>();
@@ -459,7 +459,7 @@ public class SignShopItemMeta {
                     return set.getInt("ItemMetaID");
             } catch (SQLException ignored) {
             } finally {
-                ((SSDatabaseSqlite)db).close();
+                ((SSDatabaseH2)db).close();
             }
         }
         return -1;

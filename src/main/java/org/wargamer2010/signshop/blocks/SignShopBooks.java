@@ -21,7 +21,7 @@ public class SignShopBooks {
     }
 
     public static void init() {
-        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+        if(SignShopConfig.getDbType().equals("SQLite")){
             SSDatabaseSqlite db = new SSDatabaseSqlite(filename);
 
             if(!db.tableExists("Book")) {
@@ -64,13 +64,13 @@ public class SignShopBooks {
 
         T db;
 
-        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+        if(SignShopConfig.getDbType().equals("SQLite")){
             db = (T) new SSDatabaseSqlite(filename);
         } else {
             db = (T) new SSDatabaseH2(filename);
         }
 
-        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+        if(SignShopConfig.getDbType().equals("SQLite")){
             try {
                 Integer ID = (Integer) ((SSDatabaseSqlite) db).runSqliteStatement(
                         "INSERT INTO Book(Title, Author, Pages, Generation) VALUES (?, ?, ?, ?);", pars, false);
@@ -92,13 +92,13 @@ public class SignShopBooks {
         pars.put(1, id);
         T db;
 
-        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+        if(SignShopConfig.getDbType().equals("SQLite")){
             db = (T) new SSDatabaseSqlite(filename); // Unchecked Cast will do for now
         } else {
             db = (T) new SSDatabaseH2(filename);
         }
 
-        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+        if(SignShopConfig.getDbType().equals("SQLite")){
             try {
                 ((SSDatabaseSqlite)db).runSqliteStatement("DELETE FROM Book WHERE BookID = ?;", pars, false);
             } finally {
@@ -128,14 +128,14 @@ public class SignShopBooks {
         Integer ID = null;
         T db; // temporary generic which we set to SSDatabaseSqlite or SSDatabaseH2
 
-        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+        if(SignShopConfig.getDbType().equals("SQLite")){
             db = (T) new SSDatabaseSqlite(filename);
         } else {
             db = (T) new SSDatabaseH2(filename);
         }
         try {
             ResultSet set;
-            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+            if(SignShopConfig.getDbType().equals("SQLite")){
                 set = (ResultSet)((SSDatabaseSqlite)db).runSqliteStatement("SELECT BookID FROM Book WHERE Title = ? AND Author = ? AND Pages = ? AND Generation = ?;", pars, true);
             } else {
                 set = (ResultSet)((SSDatabaseH2)db).runH2Statement("SELECT BookID FROM Book WHERE Title = ? AND Author = ? AND Pages = ? AND Generation = ?;", pars, true);
@@ -148,7 +148,7 @@ public class SignShopBooks {
         } catch (SQLException ex) {
             SignShop.log("BookID was not found in result from SELECT query.", Level.WARNING);
         } finally {
-            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+            if(SignShopConfig.getDbType().equals("SQLite")){
                 ((SSDatabaseSqlite)db).close();
             } else {
                 ((SSDatabaseH2)db).close();
@@ -166,7 +166,7 @@ public class SignShopBooks {
         pars.put(1, id);
         ResultSet set;
         T db;
-        if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+        if(SignShopConfig.getDbType().equals("SQLite")){
             db = (T) new SSDatabaseSqlite(filename); // can we declare a generic var and narrow it later?
             set = (ResultSet) ((SSDatabaseSqlite) db).runSqliteStatement("SELECT * FROM Book WHERE BookID = ?", pars, true);
         } else {
@@ -186,7 +186,7 @@ public class SignShopBooks {
         } catch (SQLException ignored) {
 
         } finally {
-            if(SignShopConfig.SqlDbTypeSelector.equals("SQLite")){
+            if(SignShopConfig.getDbType().equals("SQLite")){
                 ((SSDatabaseSqlite)db).close();
             } else {
                 ((SSDatabaseH2)db).close();
