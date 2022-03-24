@@ -55,10 +55,10 @@ public class SignShopItemMeta {
             SSDatabaseH2 db = new SSDatabaseH2(filename);
             try {
                 if(!db.tableExists("ItemMeta"))
-                    db.runH2Statement("CREATE TABLE ItemMeta ( ItemMetaID INTEGER, ItemMetaHash INT, " +
+                    db.runH2Statement("CREATE TABLE ItemMeta ( ItemMetaID INTEGER NOT NULL AUTO_INCREMENT, ItemMetaHash INT, " +
                             "RowID INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY(ItemMetaID) )", null, false);
                 if(!db.tableExists("MetaProperty"))
-                    db.runH2Statement("CREATE TABLE MetaProperty ( PropertyID INTEGER, ItemMetaID INTEGER, " +
+                    db.runH2Statement("CREATE TABLE MetaProperty ( PropertyID INTEGER NOT NULL AUTO_INCREMENT, ItemMetaID INTEGER, " +
                             "PropertyName TEXT NOT NULL, ProperyValue TEXT NOT NULL, RowID INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY(PropertyID) )", null, false);
             } finally {
                 db.close();
@@ -402,6 +402,7 @@ public class SignShopItemMeta {
             } else {
                 itemmetaid = (Integer) ((SSDatabaseH2)db).runH2Statement(
                         "INSERT INTO ItemMeta(ItemMetaHash) VALUES (?);", pars, false);
+                // Check if additional parameter passes to ItemMeta(ItemMetaHash)
 
                 if(itemmetaid == null || itemmetaid == -1)
                     return;

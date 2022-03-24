@@ -41,8 +41,9 @@ public class PlayerMetadata {
             try {
                 if(!metadb.tableExists("PlayerMeta"))
                     metadb.runH2Statement(
-                            "CREATE TABLE PlayerMeta ( PlayerMetaID INTEGER, Playername TEXT NOT NULL, " +
-                                    "Plugin TEXT NOT NULL, Metakey TEXT NOT NULL, Metavalue TEXT NOT NULL, RowID INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY(PlayerMetaID) )", null, false);
+                            "CREATE TABLE PlayerMeta ( PlayerMetaID INTEGER NOT NULL AUTO_INCREMENT, Playername TEXT NOT NULL, " +
+                                    "Plugin TEXT NOT NULL, Metakey TEXT NOT NULL, Metavalue TEXT NOT NULL, " +
+                                    "RowID INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY(PlayerMetaID) )", null, false);
             } finally {
                 metadb.close();
             }

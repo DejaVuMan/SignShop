@@ -127,17 +127,15 @@ public class SSDatabaseH2 { // H2 Database interface
                 }
             }
             if(expectingResult) {
-                SignShop.log("from expectingresult check: " + st,Level.WARNING); // testing
+                SignShop.log("from expectingResult check: " + st,Level.WARNING); // testing
                 return st.executeQuery();
             } else {
+                SignShop.log("from non expectingResult check: " + st,Level.WARNING); // testing
                 int result = st.executeUpdate();
                 ResultSet genKeys = st.getGeneratedKeys();
                 if(genKeys == null)
                     return result;
                 else {
-                    while(genKeys.next()){ // move cursor forward
-                        SignShop.log("GENKEY from runStatement: " + genKeys.getString(1), Level.INFO);
-                    }
                     try {
                         // RowID is similar to the value called on from last_insert_rowid()
                         return genKeys.getInt("RowID");
