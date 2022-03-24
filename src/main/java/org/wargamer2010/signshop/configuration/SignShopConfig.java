@@ -215,10 +215,9 @@ public class SignShopConfig {
         if (ymlThing == null)
             return;
         configUtil.loadYMLFromJar(ymlThing, configFilename);
-
+        SignShop.log(SqlDbTypeSelector, Level.WARNING);
         SqlDbTypeSelector = ymlThing.getString("SqlDbTypeSelector", SqlDbTypeSelector);
-        // TODO: Finalize Implementation of SQL "Mode" selector and H2-based files
-
+        SignShop.log(SqlDbTypeSelector, Level.WARNING);
         ConfigVersionDoNotTouch = ymlThing.getInt("ConfigVersionDoNotTouch", ConfigVersionDoNotTouch);
         MaxSellDistance = ymlThing.getInt("MaxSellDistance", MaxSellDistance);
         TransactionLog = ymlThing.getBoolean("TransactionLog", TransactionLog);
@@ -815,6 +814,10 @@ public class SignShopConfig {
 
     public static boolean isInspectionMaterial(ItemStack item) {
         return (item !=null && item.getType() == inspectMaterial);
+    }
+
+    public static String getDbType(){
+        return SqlDbTypeSelector;
     }
 
     public static Material getLinkMaterial() {

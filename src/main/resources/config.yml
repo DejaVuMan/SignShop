@@ -3,6 +3,12 @@
 
 # There are a few basic options to modify how SignShop acts globally
 # You can edit anything in this config and use "/signshop reload" to reload the config while the server is running
+#----------- Database Type Options ------------------
+
+# Allows to select between two different database types - SQLite and an experimental H2 implementation.
+# Database tables and config differ slightly.
+
+SqlDbTypeSelector: SQLite
 
 
 #----------- Admin Options ------------------
